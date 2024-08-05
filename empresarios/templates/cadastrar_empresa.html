@@ -22,7 +22,7 @@
         {% endif %}
         <div class="row">
             <div class="col-md">
-                <form action="{% url 'cadastrar_empresa' %}" method="POST">
+                <form action="{% url 'cadastrar_empresa' %}" method="POST" enctype="multipart/form-data">
                 {% csrf_token %}
                 <label>Nome</label>
                 <input type="text" name="nome" placeholder="Digite o nome da sua empresa ..." class="form-control">
