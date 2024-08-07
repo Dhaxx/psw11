@@ -1,5 +1,5 @@
-from django.shortcuts import render, redirect
-from .models import Empresa
+from django.shortcuts import render, redirect, HttpResponse
+from .models import Empresa, Documento, Metrica
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 import re
@@ -74,3 +74,70 @@ def cadastrar_empresa(request):
 
         messages.success(request, 'Empresa cadastrada com sucesso!')
         return redirect('/empresarios/cadastrar_empresa')
+    
+@login_required   
+def listar_empresas(request):
+    if request.method == 'GET':
+        empresas = Empresa.objects.filter(user=request.user)
+        return render(request, 'listar_empresas.html', {'empresas': empresas})
+    
+@login_required
+def empresa(request, nome_empresa):
+    if request.method == 'GET':
+        empresa = Empresa.objects.get(nome=nome_empresa)
+        documento = Documento.objects.filter(empresa=empresa)
+        return render(request, 'empresa.html', {'empresa': empresa, 'documentos': documento})
+        
+        # id = request.GET.get('id')
+        # empresa = Empresa.objects.get(id=id)
+        # return render(request, 'empresas.html', {'empresa': empresa})
+
+@login_required
+def add_doc(request, nome_empresa):
+    empresa = Empresa.objects.get(nome=nome_empresa)
+    titulo = request.POST.get('titulo')
+    arquivo = request.FILES.get('arquivo')
+    extensao = arquivo.name.split('.')[-1]
+
+    if extensao != 'pdf':
+        messages.error(request, 'O arquivo deve ser um PDF!')
+        return redirect(f'/empresarios/empresa/{empresa.nome}')
+    
+    if not arquivo:
+        messages.error(request, 'O arquivo é obrigatório!')
+        return redirect(f'/empresarios/empresa/{empresa.nome}')
+    
+    doc = Documento(empresa=empresa, titulo=titulo, arquivo=arquivo)
+    doc.save()
+
+    messages.success(request, 'Documento adicionado com sucesso!')
+    return redirect(f'/empresarios/empresa/{empresa.nome}')
+
+@login_required
+def excluir_doc(request, doc_id):
+    doc = Documento.objects.get(id=doc_id)
+
+    if doc.empresa.user != request.user:
+        messages.error(request, 'Você não tem permissão para excluir este documento!')
+        return redirect(f'/empresarios/empresa/{doc.empresa.nome}')
+
+    empresa = doc.empresa
+    doc.delete()
+    messages.success(request, 'Documento excluído com sucesso!')
+    return redirect(f'/empresarios/empresa/{empresa.nome}')
+
+@login_required
+def add_metrica(request, empresa_id):
+    empresa = Empresa.objects.get(id=empresa_id)
+    titulo = request.POST.get('titulo')
+    valor = request.POST.get('valor')
+
+    if empresa.user != request.user:
+        messages.error(request, 'Você não tem permissão para adicionar métricas a esta empresa!')
+        return redirect(f'/empresarios/empresa/{empresa.nome}')
+    
+    metrica = Metrica(empresa=empresa, titulo=titulo, valor=valor)
+    metrica.save()
+
+    messages.success(request, 'Métrica adicionada com sucesso!')
+    return redirect(f'/empresarios/empresa/{empresa.nome}')

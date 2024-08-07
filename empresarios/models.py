@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils.safestring import mark_safe
+from datetime import datetime
 
 class Empresa(models.Model):
     tempo_existencia_choices = (
@@ -37,3 +39,29 @@ class Empresa(models.Model):
 
     def __str__(self):
         return f'{self.user.username} | {self.nome}'
+    
+    @property
+    def status(self):
+        if self.data_final_captacao < datetime.now().date():
+            return mark_safe('<span class="badge rounded-pill text-bg-danger">Captação Finalizada</span>')
+        return mark_safe('<span class="badge rounded-pill text-bg-success">Em Captação</span>')
+    
+    @property
+    def valuation(self):
+        return (100 * self.valor) / self.percentual_equity
+    
+class Documento(models.Model):
+    empresa = models.ForeignKey(Empresa, on_delete=models.DO_NOTHING)
+    titulo = models.CharField(max_length=30)
+    arquivo = models.FileField(upload_to='documentos')
+
+    def __str__(self):
+        return f'{self.empresa} | {self.titulo}'
+    
+class Metrica(models.Model):
+    empresa = models.ForeignKey(Empresa, on_delete=models.DO_NOTHING)
+    titulo = models.CharField(max_length=30)
+    valor = models.FloatField(default=0.0)
+
+    def __str__(self):
+        return f'{self.empresa} | {self.titulo}'
