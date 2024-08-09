@@ -8,4 +8,5 @@ urlpatterns = [
     path('add_doc/<str:nome_empresa>', views.add_doc, name='add_doc'),
     path('excluir_doc/<int:doc_id>', views.excluir_doc, name='excluir_doc'),
     path('add_metrica/<int:empresa_id>', views.add_metrica, name='add_metrica'),
+    path('gerenciar_proposta/<int:id>', views.gerenciar_proposta, name="gerenciar_proposta")
 ]

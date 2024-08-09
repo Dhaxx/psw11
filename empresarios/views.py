@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, HttpResponse
 from .models import Empresa, Documento, Metrica
+from investidores.models import PropostaInvestimento
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 import re
@@ -83,14 +84,24 @@ def listar_empresas(request):
     
 @login_required
 def empresa(request, nome_empresa):
+    empresa = Empresa.objects.get(nome=nome_empresa)
+    if empresa.user != request.user:
+        messages.error(request, 'Você não tem permissão para acessar esta empresa!')
+        return redirect('/usuarios/login')
+
     if request.method == 'GET':
-        empresa = Empresa.objects.get(nome=nome_empresa)
-        documento = Documento.objects.filter(empresa=empresa)
-        return render(request, 'empresa.html', {'empresa': empresa, 'documentos': documento})
+        documentos = Documento.objects.filter(empresa=empresa)
+        proposta_investimentos = PropostaInvestimento.objects.filter(empresa=empresa)
+        percentual_vendido = 0
+        for pi in proposta_investimentos:
+            if pi.status == 'PA':
+                percentual_vendido += pi.percentual
         
-        # id = request.GET.get('id')
-        # empresa = Empresa.objects.get(id=id)
-        # return render(request, 'empresas.html', {'empresa': empresa})
+        total_captado = sum(proposta_investimentos.filter(status='PA').values_list('valor', flat=True))
+        valuation_atual = (100 * float(total_captado)) / float(percentual_vendido) if percentual_vendido != 0 else 0
+
+        proposta_investimentos_enviada = proposta_investimentos.filter(status='PE')
+        return render(request, 'empresa.html', {'empresa': empresa, 'documentos': documentos, 'proposta_investimentos_enviada': proposta_investimentos_enviada, 'total_captado': total_captado, 'valuation_atual': valuation_atual})
 
 @login_required
 def add_doc(request, nome_empresa):
@@ -141,3 +152,18 @@ def add_metrica(request, empresa_id):
 
     messages.success(request, 'Métrica adicionada com sucesso!')
     return redirect(f'/empresarios/empresa/{empresa.nome}')
+
+@login_required
+def gerenciar_proposta(request, id):
+    acao = request.GET.get('acao')
+    pi = PropostaInvestimento.objects.get(id=id)
+
+    if acao == 'aceitar':
+        messages.success(request, 'Proposta aceita')
+        pi.status = 'PA'
+    elif acao == 'recusar':
+        messages.success(request, 'Proposta recusada')
+        pi.status = 'PR'
+
+    pi.save()
+    return redirect(f'/empresarios/empresa/{pi.empresa.id}')
